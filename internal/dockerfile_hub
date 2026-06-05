@@ -1,6 +1,19 @@
+FROM --platform=$BUILDPLATFORM oven/bun:alpine AS site_builder
+
+WORKDIR /app
+
+COPY . ./
+
+RUN bun install --no-save --cwd ./internal/site \
+    && bun run --cwd ./internal/site build
+
 FROM --platform=$BUILDPLATFORM golang:alpine AS builder
 
 WORKDIR /app
+
+RUN apk add --no-cache \
+    unzip \
+    ca-certificates
 
 # Download Go modules
 COPY ../go.mod ../go.sum ./
@@ -8,10 +21,7 @@ RUN go mod download
 
 # Copy source files
 COPY . ./
-
-RUN apk add --no-cache \
-    unzip \
-    ca-certificates
+COPY --from=site_builder /app/internal/site/dist ./internal/site/dist
 
 RUN update-ca-certificates
 
